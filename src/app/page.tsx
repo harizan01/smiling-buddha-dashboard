@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { AlertTriangle, Eye, Download, Filter, RefreshCw, Camera, Clock, TrendingUp, Flame, Search, Bell, Settings, Menu, X } from 'lucide-react';
+import { Analytics } from "@vercel/analytics/next"
 
 interface FireEvent {
   id: string;
@@ -314,8 +315,8 @@ export default function Page() {
                       key={severity}
                       onClick={() => setFilter(severity)}
                       className={`px-4 py-2 rounded-xl text-sm font-medium transition-all duration-200 transform hover:scale-105 ${filter === severity
-                          ? 'bg-gradient-to-r from-blue-500 to-blue-600 text-white shadow-lg'
-                          : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                        ? 'bg-gradient-to-r from-blue-500 to-blue-600 text-white shadow-lg'
+                        : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
                         }`}
                     >
                       {severity.charAt(0).toUpperCase() + severity.slice(1)}
