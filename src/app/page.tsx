@@ -3,15 +3,31 @@
 import React, { useState, useEffect } from 'react';
 import { AlertTriangle, Eye, Download, Filter, RefreshCw, Camera, Clock, TrendingUp } from 'lucide-react';
 
+interface FireEvent {
+  id: string;
+  timestamp: string;
+  site: string;
+  camera: string;
+  severity: 'critical' | 'medium' | 'low';
+  confidence: number;
+  type: string;
+  thumbnail: string;
+  videoUrl: string | null;
+  metadata: {
+    location: { x: number; y: number; width: number; height: number };
+    duration: number;
+  };
+}
+
 export default function Page() {
-  const [events, setEvents] = useState([]);
+  const [events, setEvents] = useState<FireEvent[]>([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState('all');
-  const [selectedEvent, setSelectedEvent] = useState(null);
+  const [selectedEvent, setSelectedEvent] = useState<FireEvent | null>(null);
   const [videoLoading, setVideoLoading] = useState(false);
 
-  // Mock data - replace with actual API calls
-  const mockEvents = [
+  // Mock data with proper typing
+  const mockEvents: FireEvent[] = [
     {
       id: 'evt_001',
       timestamp: '2025-08-20T14:30:00Z',
@@ -61,16 +77,18 @@ export default function Page() {
 
   useEffect(() => {
     // Simulate API call
-    setTimeout(() => {
+    const timer = setTimeout(() => {
       setEvents(mockEvents);
       setLoading(false);
     }, 1000);
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+    return () => clearTimeout(timer);
+  }, []); // This is now properly typed
 
   const fetchEvents = async () => {
     setLoading(true);
-    // Replace with actual API call to your Lambda function
     try {
+      // Replace with actual API call to your Lambda function
       // const response = await fetch('/api/events');
       // const data = await response.json();
       // setEvents(data.events);
@@ -86,12 +104,12 @@ export default function Page() {
     }
   };
 
-  const handleVideoPlay = async (event) => {
+  const handleVideoPlay = async (event: FireEvent) => {
     setVideoLoading(true);
     setSelectedEvent(event);
 
-    // Request presigned URL from your Lambda function
     try {
+      // Request presigned URL from your Lambda function
       // const response = await fetch(`/api/video-url/${event.id}`);
       // const data = await response.json();
       // setSelectedEvent({...event, videoUrl: data.presignedUrl});
@@ -115,7 +133,7 @@ export default function Page() {
     return event.severity === filter;
   });
 
-  const getSeverityColor = (severity) => {
+  const getSeverityColor = (severity: string) => {
     switch (severity) {
       case 'critical': return 'text-red-600 bg-red-50 border-red-200';
       case 'medium': return 'text-orange-600 bg-orange-50 border-orange-200';
@@ -124,15 +142,15 @@ export default function Page() {
     }
   };
 
-  const getSeverityIcon = (severity) => {
+  const getSeverityIcon = (severity: string) => {
     return <AlertTriangle className={`w-4 h-4 ${severity === 'critical' ? 'text-red-500' : severity === 'medium' ? 'text-orange-500' : 'text-yellow-500'}`} />;
   };
 
-  const formatTimestamp = (timestamp) => {
+  const formatTimestamp = (timestamp: string) => {
     return new Date(timestamp).toLocaleString();
   };
 
-  const formatConfidence = (confidence) => {
+  const formatConfidence = (confidence: number) => {
     return `${(confidence * 100).toFixed(1)}%`;
   };
 
