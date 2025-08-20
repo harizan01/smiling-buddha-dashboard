@@ -65,7 +65,7 @@ export default function Page() {
       setEvents(mockEvents);
       setLoading(false);
     }, 1000);
-  }, []);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const fetchEvents = async () => {
     setLoading(true);
