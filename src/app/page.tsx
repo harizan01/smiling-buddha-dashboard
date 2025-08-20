@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { AlertTriangle, Eye, Download, Filter, RefreshCw, Camera, Clock, TrendingUp } from 'lucide-react';
+import { AlertTriangle, Eye, Download, Filter, RefreshCw, Camera, Clock, TrendingUp, Flame, Search, Bell, Settings, Menu, X } from 'lucide-react';
 
 interface FireEvent {
   id: string;
@@ -25,8 +25,9 @@ export default function Page() {
   const [filter, setFilter] = useState('all');
   const [selectedEvent, setSelectedEvent] = useState<FireEvent | null>(null);
   const [videoLoading, setVideoLoading] = useState(false);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [sidebarOpen, setSidebarOpen] = useState(false);
 
-  // Mock data with proper typing
   const mockEvents: FireEvent[] = [
     {
       id: 'evt_001',
@@ -36,7 +37,7 @@ export default function Page() {
       severity: 'critical',
       confidence: 0.95,
       type: 'fire',
-      thumbnail: 'https://via.placeholder.com/320x180/ff6b6b/ffffff?text=Fire+Detected',
+      thumbnail: 'https://images.unsplash.com/photo-1574870111867-089ad2b5618a?w=320&h=180&fit=crop&crop=center',
       videoUrl: null,
       metadata: {
         location: { x: 450, y: 320, width: 120, height: 80 },
@@ -51,7 +52,7 @@ export default function Page() {
       severity: 'medium',
       confidence: 0.78,
       type: 'smoke',
-      thumbnail: 'https://via.placeholder.com/320x180/ffa500/ffffff?text=Smoke+Detected',
+      thumbnail: 'https://images.unsplash.com/photo-1541746972996-4e0b0f93e586?w=320&h=180&fit=crop&crop=center',
       videoUrl: null,
       metadata: {
         location: { x: 200, y: 150, width: 90, height: 60 },
@@ -66,7 +67,7 @@ export default function Page() {
       severity: 'low',
       confidence: 0.65,
       type: 'smoke',
-      thumbnail: 'https://via.placeholder.com/320x180/ffeb3b/333333?text=Smoke+Suspected',
+      thumbnail: 'https://images.unsplash.com/photo-1571068316344-75bc76f77890?w=320&h=180&fit=crop&crop=center',
       videoUrl: null,
       metadata: {
         location: { x: 300, y: 250, width: 70, height: 50 },
@@ -76,24 +77,17 @@ export default function Page() {
   ];
 
   useEffect(() => {
-    // Simulate API call
     const timer = setTimeout(() => {
       setEvents(mockEvents);
       setLoading(false);
     }, 1000);
 
     return () => clearTimeout(timer);
-  }, []); // This is now properly typed
+  }, []);
 
   const fetchEvents = async () => {
     setLoading(true);
     try {
-      // Replace with actual API call to your Lambda function
-      // const response = await fetch('/api/events');
-      // const data = await response.json();
-      // setEvents(data.events);
-
-      // Mock delay
       setTimeout(() => {
         setEvents(mockEvents);
         setLoading(false);
@@ -109,12 +103,6 @@ export default function Page() {
     setSelectedEvent(event);
 
     try {
-      // Request presigned URL from your Lambda function
-      // const response = await fetch(`/api/video-url/${event.id}`);
-      // const data = await response.json();
-      // setSelectedEvent({...event, videoUrl: data.presignedUrl});
-
-      // Mock video URL
       setTimeout(() => {
         setSelectedEvent({
           ...event,
@@ -129,262 +117,366 @@ export default function Page() {
   };
 
   const filteredEvents = events.filter(event => {
-    if (filter === 'all') return true;
-    return event.severity === filter;
+    const matchesFilter = filter === 'all' || event.severity === filter;
+    const matchesSearch = event.site.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      event.camera.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      event.type.toLowerCase().includes(searchTerm.toLowerCase());
+    return matchesFilter && matchesSearch;
   });
 
-  const getSeverityColor = (severity: string) => {
+  const getSeverityConfig = (severity: string) => {
     switch (severity) {
-      case 'critical': return 'text-red-600 bg-red-50 border-red-200';
-      case 'medium': return 'text-orange-600 bg-orange-50 border-orange-200';
-      case 'low': return 'text-yellow-600 bg-yellow-50 border-yellow-200';
-      default: return 'text-gray-600 bg-gray-50 border-gray-200';
+      case 'critical':
+        return {
+          color: 'text-red-600 bg-gradient-to-r from-red-50 to-pink-50 border-red-200',
+          icon: 'text-red-500',
+          glow: 'shadow-red-100'
+        };
+      case 'medium':
+        return {
+          color: 'text-orange-600 bg-gradient-to-r from-orange-50 to-yellow-50 border-orange-200',
+          icon: 'text-orange-500',
+          glow: 'shadow-orange-100'
+        };
+      case 'low':
+        return {
+          color: 'text-yellow-600 bg-gradient-to-r from-yellow-50 to-amber-50 border-yellow-200',
+          icon: 'text-yellow-500',
+          glow: 'shadow-yellow-100'
+        };
+      default:
+        return {
+          color: 'text-gray-600 bg-gradient-to-r from-gray-50 to-slate-50 border-gray-200',
+          icon: 'text-gray-500',
+          glow: 'shadow-gray-100'
+        };
     }
   };
 
   const getSeverityIcon = (severity: string) => {
-    return <AlertTriangle className={`w-4 h-4 ${severity === 'critical' ? 'text-red-500' : severity === 'medium' ? 'text-orange-500' : 'text-yellow-500'}`} />;
+    const config = getSeverityConfig(severity);
+    return severity === 'critical' ?
+      <Flame className={`w-4 h-4 ${config.icon}`} /> :
+      <AlertTriangle className={`w-4 h-4 ${config.icon}`} />;
   };
 
   const formatTimestamp = (timestamp: string) => {
-    return new Date(timestamp).toLocaleString();
+    return new Date(timestamp).toLocaleString('en-US', {
+      month: 'short',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
+    });
   };
 
   const formatConfidence = (confidence: number) => {
     return `${(confidence * 100).toFixed(1)}%`;
   };
 
+  const getStatCardConfig = (type: string) => {
+    switch (type) {
+      case 'total':
+        return {
+          gradient: 'bg-gradient-to-br from-blue-500 to-blue-600',
+          iconBg: 'bg-blue-100',
+          icon: <TrendingUp className="w-8 h-8 text-blue-600" />
+        };
+      case 'critical':
+        return {
+          gradient: 'bg-gradient-to-br from-red-500 to-red-600',
+          iconBg: 'bg-red-100',
+          icon: <Flame className="w-8 h-8 text-red-600" />
+        };
+      case 'cameras':
+        return {
+          gradient: 'bg-gradient-to-br from-green-500 to-green-600',
+          iconBg: 'bg-green-100',
+          icon: <Camera className="w-8 h-8 text-green-600" />
+        };
+      case 'recent':
+        return {
+          gradient: 'bg-gradient-to-br from-purple-500 to-purple-600',
+          iconBg: 'bg-purple-100',
+          icon: <Clock className="w-8 h-8 text-purple-600" />
+        };
+      default:
+        return {
+          gradient: 'bg-gradient-to-br from-gray-500 to-gray-600',
+          iconBg: 'bg-gray-100',
+          icon: <TrendingUp className="w-8 h-8 text-gray-600" />
+        };
+    }
+  };
+
   return (
-    <div className="min-h-screen bg-gray-50">
-      {/* Header */}
-      <div className="bg-white shadow-sm border-b">
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100">
+      {/* Modern Header with Glass Effect */}
+      <div className="bg-white/70 backdrop-blur-lg shadow-lg border-b border-white/20 sticky top-0 z-40">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center py-6">
-            <div className="flex items-center space-x-3">
-              <div className="p-2 bg-red-100 rounded-lg">
-                <AlertTriangle className="w-8 h-8 text-red-600" />
-              </div>
-              <div>
-                <h1 className="text-2xl font-bold text-gray-900">Fire Detection Dashboard</h1>
-                <p className="text-gray-600">Real-time monitoring and alerts</p>
+          <div className="flex justify-between items-center py-4">
+            <div className="flex items-center space-x-4">
+              <button
+                onClick={() => setSidebarOpen(!sidebarOpen)}
+                className="lg:hidden p-2 rounded-xl bg-white/80 hover:bg-white shadow-sm transition-all duration-200"
+              >
+                <Menu className="w-5 h-5 text-gray-600" />
+              </button>
+
+              <div className="flex items-center space-x-3">
+                <div className="p-3 bg-gradient-to-br from-red-500 to-orange-500 rounded-2xl shadow-lg">
+                  <Flame className="w-8 h-8 text-white" />
+                </div>
+                <div>
+                  <h1 className="text-2xl font-bold bg-gradient-to-r from-gray-800 to-gray-600 bg-clip-text text-transparent">
+                    Fire Detection Dashboard
+                  </h1>
+                  <p className="text-gray-500 text-sm">Real-time monitoring and alerts</p>
+                </div>
               </div>
             </div>
-            <button
-              onClick={fetchEvents}
-              disabled={loading}
-              className="flex items-center space-x-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50"
-            >
-              <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
-              <span>Refresh</span>
-            </button>
+
+            <div className="flex items-center space-x-4">
+              <div className="relative hidden md:block">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
+                <input
+                  type="text"
+                  placeholder="Search events..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="pl-10 pr-4 py-2 bg-white/80 border border-gray-200/50 rounded-xl focus:ring-2 focus:ring-blue-500/20 focus:border-blue-300 transition-all duration-200 backdrop-blur-sm"
+                />
+              </div>
+
+              <button className="p-2 rounded-xl bg-white/80 hover:bg-white shadow-sm transition-all duration-200">
+                <Bell className="w-5 h-5 text-gray-600" />
+              </button>
+
+              <button className="p-2 rounded-xl bg-white/80 hover:bg-white shadow-sm transition-all duration-200">
+                <Settings className="w-5 h-5 text-gray-600" />
+              </button>
+
+              <button
+                onClick={fetchEvents}
+                disabled={loading}
+                className="flex items-center space-x-2 px-6 py-2 bg-gradient-to-r from-blue-500 to-blue-600 text-white rounded-xl hover:from-blue-600 hover:to-blue-700 disabled:opacity-50 shadow-lg hover:shadow-xl transition-all duration-200 transform hover:scale-105"
+              >
+                <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
+                <span className="font-medium">Refresh</span>
+              </button>
+            </div>
           </div>
         </div>
       </div>
 
-      {/* Stats Cards */}
+      {/* Modern Stats Cards with Animations */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
-          <div className="bg-white rounded-xl p-6 shadow-sm border">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-gray-600">Total Events</p>
-                <p className="text-2xl font-bold text-gray-900">{events.length}</p>
+        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6 mb-8">
+          {[
+            { type: 'total', title: 'Total Events', value: events.length, change: '+12%' },
+            { type: 'critical', title: 'Critical Alerts', value: events.filter(e => e.severity === 'critical').length, change: '+5%' },
+            { type: 'cameras', title: 'Active Cameras', value: 12, change: '100%' },
+            { type: 'recent', title: 'Last 24h', value: events.length, change: '+8%' }
+          ].map((stat, index) => {
+            const config = getStatCardConfig(stat.type);
+            return (
+              <div
+                key={stat.type}
+                className="bg-white/80 backdrop-blur-sm rounded-2xl p-6 shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105 border border-white/20"
+                style={{ animationDelay: `${index * 100}ms` }}
+              >
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm text-gray-600 font-medium mb-1">{stat.title}</p>
+                    <p className="text-3xl font-bold text-gray-800 mb-1">{stat.value}</p>
+                    <p className="text-xs text-green-600 font-medium">{stat.change} from last week</p>
+                  </div>
+                  <div className={`p-3 ${config.iconBg} rounded-2xl shadow-sm`}>
+                    {config.icon}
+                  </div>
+                </div>
               </div>
-              <TrendingUp className="w-8 h-8 text-blue-500" />
-            </div>
-          </div>
-          <div className="bg-white rounded-xl p-6 shadow-sm border">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-gray-600">Critical</p>
-                <p className="text-2xl font-bold text-red-600">{events.filter(e => e.severity === 'critical').length}</p>
-              </div>
-              <AlertTriangle className="w-8 h-8 text-red-500" />
-            </div>
-          </div>
-          <div className="bg-white rounded-xl p-6 shadow-sm border">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-gray-600">Active Cameras</p>
-                <p className="text-2xl font-bold text-gray-900">12</p>
-              </div>
-              <Camera className="w-8 h-8 text-green-500" />
-            </div>
-          </div>
-          <div className="bg-white rounded-xl p-6 shadow-sm border">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-gray-600">Last 24h</p>
-                <p className="text-2xl font-bold text-gray-900">{events.length}</p>
-              </div>
-              <Clock className="w-8 h-8 text-purple-500" />
-            </div>
-          </div>
+            );
+          })}
         </div>
 
-        {/* Filters */}
-        <div className="bg-white rounded-xl shadow-sm border mb-6">
+        {/* Modern Filter Bar */}
+        <div className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-lg border border-white/20 mb-8 overflow-hidden">
           <div className="p-6">
-            <div className="flex items-center justify-between">
+            <div className="flex flex-col lg:flex-row lg:items-center justify-between space-y-4 lg:space-y-0">
               <div className="flex items-center space-x-4">
-                <Filter className="w-5 h-5 text-gray-400" />
+                <div className="p-2 bg-blue-100 rounded-xl">
+                  <Filter className="w-5 h-5 text-blue-600" />
+                </div>
                 <span className="text-sm font-medium text-gray-700">Filter by severity:</span>
                 <div className="flex space-x-2">
                   {['all', 'critical', 'medium', 'low'].map((severity) => (
                     <button
                       key={severity}
                       onClick={() => setFilter(severity)}
-                      className={`px-3 py-1 rounded-full text-sm font-medium transition-colors ${filter === severity
-                        ? 'bg-blue-100 text-blue-800'
-                        : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                      className={`px-4 py-2 rounded-xl text-sm font-medium transition-all duration-200 transform hover:scale-105 ${filter === severity
+                          ? 'bg-gradient-to-r from-blue-500 to-blue-600 text-white shadow-lg'
+                          : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
                         }`}
                     >
                       {severity.charAt(0).toUpperCase() + severity.slice(1)}
+                      {severity !== 'all' && (
+                        <span className="ml-2 px-2 py-0.5 bg-white/20 rounded-full text-xs">
+                          {events.filter(e => e.severity === severity).length}
+                        </span>
+                      )}
                     </button>
                   ))}
                 </div>
+              </div>
+
+              <div className="flex items-center space-x-4 text-sm text-gray-600">
+                <span>Showing {filteredEvents.length} of {events.length} events</span>
               </div>
             </div>
           </div>
         </div>
 
-        {/* Events Table */}
-        <div className="bg-white rounded-xl shadow-sm border">
-          <div className="px-6 py-4 border-b">
-            <h2 className="text-lg font-semibold text-gray-900">Detection Events</h2>
+        {/* Modern Events Table */}
+        <div className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-lg border border-white/20 overflow-hidden">
+          <div className="px-6 py-4 border-b border-gray-200/50 bg-gradient-to-r from-gray-50/50 to-blue-50/30">
+            <h2 className="text-xl font-bold text-gray-800">Detection Events</h2>
+            <p className="text-sm text-gray-600 mt-1">Real-time fire and smoke detection alerts</p>
           </div>
+
           <div className="overflow-x-auto">
             {loading ? (
-              <div className="flex items-center justify-center py-12">
-                <RefreshCw className="w-8 h-8 animate-spin text-gray-400" />
-                <span className="ml-3 text-gray-600">Loading events...</span>
+              <div className="flex items-center justify-center py-16">
+                <div className="text-center">
+                  <div className="w-16 h-16 bg-gradient-to-r from-blue-500 to-purple-500 rounded-2xl flex items-center justify-center mb-4 mx-auto animate-pulse">
+                    <RefreshCw className="w-8 h-8 text-white animate-spin" />
+                  </div>
+                  <p className="text-gray-600 font-medium">Loading events...</p>
+                </div>
               </div>
             ) : filteredEvents.length === 0 ? (
-              <div className="flex items-center justify-center py-12">
+              <div className="flex items-center justify-center py-16">
                 <div className="text-center">
-                  <AlertTriangle className="w-12 h-12 text-gray-300 mx-auto mb-4" />
-                  <p className="text-gray-500">No events found</p>
+                  <div className="w-16 h-16 bg-gray-100 rounded-2xl flex items-center justify-center mb-4 mx-auto">
+                    <AlertTriangle className="w-8 h-8 text-gray-400" />
+                  </div>
+                  <p className="text-gray-500 font-medium">No events found</p>
+                  <p className="text-gray-400 text-sm mt-1">Try adjusting your filters</p>
                 </div>
               </div>
             ) : (
-              <table className="w-full">
-                <thead className="bg-gray-50">
-                  <tr>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Event</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Location</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Severity</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Confidence</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Preview</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
-                  </tr>
-                </thead>
-                <tbody className="bg-white divide-y divide-gray-200">
-                  {filteredEvents.map((event) => (
-                    <tr key={event.id} className="hover:bg-gray-50">
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <div>
-                          <div className="text-sm font-medium text-gray-900">{formatTimestamp(event.timestamp)}</div>
-                          <div className="text-sm text-gray-500">Type: {event.type}</div>
+              <div className="divide-y divide-gray-200/50">
+                {filteredEvents.map((event, index) => {
+                  const severityConfig = getSeverityConfig(event.severity);
+                  return (
+                    <div
+                      key={event.id}
+                      className="p-6 hover:bg-gradient-to-r hover:from-blue-50/30 hover:to-indigo-50/20 transition-all duration-200"
+                      style={{ animationDelay: `${index * 50}ms` }}
+                    >
+                      <div className="flex flex-col lg:flex-row lg:items-center justify-between space-y-4 lg:space-y-0">
+                        <div className="flex items-center space-x-4">
+                          <img
+                            src={event.thumbnail}
+                            alt="Event thumbnail"
+                            className="w-20 h-14 object-cover rounded-xl shadow-md"
+                          />
+                          <div>
+                            <div className="flex items-center space-x-3 mb-2">
+                              <h3 className="font-semibold text-gray-800">{formatTimestamp(event.timestamp)}</h3>
+                              <span className={`inline-flex items-center space-x-2 px-3 py-1 rounded-full text-xs font-medium border ${severityConfig.color} ${severityConfig.glow}`}>
+                                {getSeverityIcon(event.severity)}
+                                <span>{event.severity}</span>
+                              </span>
+                            </div>
+                            <div className="flex items-center space-x-4 text-sm text-gray-600">
+                              <span><strong>Site:</strong> {event.site}</span>
+                              <span><strong>Camera:</strong> {event.camera}</span>
+                              <span><strong>Type:</strong> {event.type}</span>
+                              <span><strong>Confidence:</strong> {formatConfidence(event.confidence)}</span>
+                            </div>
+                          </div>
                         </div>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="text-sm text-gray-900">{event.site}</div>
-                        <div className="text-sm text-gray-500">{event.camera}</div>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <span className={`inline-flex items-center space-x-1 px-2 py-1 rounded-full text-xs font-medium border ${getSeverityColor(event.severity)}`}>
-                          {getSeverityIcon(event.severity)}
-                          <span>{event.severity}</span>
-                        </span>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                        {formatConfidence(event.confidence)}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <img
-                          src={event.thumbnail}
-                          alt="Event thumbnail"
-                          className="w-16 h-12 object-cover rounded border"
-                        />
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm space-x-2">
-                        <button
-                          onClick={() => handleVideoPlay(event)}
-                          className="inline-flex items-center space-x-1 px-3 py-1 bg-blue-100 text-blue-700 rounded-md hover:bg-blue-200"
-                        >
-                          <Eye className="w-4 h-4" />
-                          <span>View</span>
-                        </button>
-                        <button className="inline-flex items-center space-x-1 px-3 py-1 bg-gray-100 text-gray-700 rounded-md hover:bg-gray-200">
-                          <Download className="w-4 h-4" />
-                          <span>Download</span>
-                        </button>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+
+                        <div className="flex items-center space-x-3">
+                          <button
+                            onClick={() => handleVideoPlay(event)}
+                            className="flex items-center space-x-2 px-4 py-2 bg-gradient-to-r from-blue-500 to-blue-600 text-white rounded-xl hover:from-blue-600 hover:to-blue-700 transition-all duration-200 transform hover:scale-105 shadow-lg"
+                          >
+                            <Eye className="w-4 h-4" />
+                            <span>View</span>
+                          </button>
+                          <button className="flex items-center space-x-2 px-4 py-2 bg-gradient-to-r from-gray-100 to-gray-200 text-gray-700 rounded-xl hover:from-gray-200 hover:to-gray-300 transition-all duration-200 transform hover:scale-105">
+                            <Download className="w-4 h-4" />
+                            <span>Download</span>
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
             )}
           </div>
         </div>
       </div>
 
-      {/* Video Modal */}
+      {/* Modern Video Modal */}
       {selectedEvent && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-xl max-w-4xl w-full max-h-[90vh] overflow-auto">
-            <div className="p-6 border-b flex justify-between items-center">
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-50 animate-in fade-in duration-200">
+          <div className="bg-white rounded-3xl max-w-5xl w-full max-h-[90vh] overflow-auto shadow-2xl animate-in zoom-in-95 duration-300">
+            <div className="p-6 border-b border-gray-200 flex justify-between items-center bg-gradient-to-r from-gray-50 to-blue-50/30">
               <div>
-                <h3 className="text-lg font-semibold text-gray-900">Event Details</h3>
-                <p className="text-sm text-gray-500">{formatTimestamp(selectedEvent.timestamp)} - {selectedEvent.site}</p>
+                <h3 className="text-xl font-bold text-gray-800">Event Details</h3>
+                <p className="text-gray-600">{formatTimestamp(selectedEvent.timestamp)} - {selectedEvent.site}</p>
               </div>
               <button
                 onClick={() => setSelectedEvent(null)}
-                className="text-gray-400 hover:text-gray-600"
+                className="p-2 rounded-xl bg-gray-100 hover:bg-gray-200 transition-all duration-200 transform hover:scale-105"
               >
-                ✕
+                <X className="w-5 h-5 text-gray-600" />
               </button>
             </div>
+
             <div className="p-6">
               {videoLoading ? (
-                <div className="flex items-center justify-center py-12 bg-gray-100 rounded-lg">
-                  <RefreshCw className="w-8 h-8 animate-spin text-gray-400" />
-                  <span className="ml-3 text-gray-600">Loading video...</span>
+                <div className="flex items-center justify-center py-16 bg-gradient-to-br from-blue-50 to-indigo-50 rounded-2xl">
+                  <div className="text-center">
+                    <div className="w-16 h-16 bg-gradient-to-r from-blue-500 to-purple-500 rounded-2xl flex items-center justify-center mb-4 mx-auto animate-pulse">
+                      <RefreshCw className="w-8 h-8 text-white animate-spin" />
+                    </div>
+                    <p className="text-gray-600 font-medium">Loading video...</p>
+                  </div>
                 </div>
               ) : selectedEvent.videoUrl ? (
                 <video
                   controls
-                  className="w-full rounded-lg"
+                  className="w-full rounded-2xl shadow-lg"
                   poster={selectedEvent.thumbnail}
                 >
                   <source src={selectedEvent.videoUrl} type="video/mp4" />
                   Your browser does not support the video tag.
                 </video>
               ) : (
-                <div className="bg-gray-100 rounded-lg p-8 text-center">
-                  <p className="text-gray-500">Video not available</p>
+                <div className="bg-gradient-to-br from-gray-50 to-gray-100 rounded-2xl p-12 text-center">
+                  <div className="w-16 h-16 bg-gray-200 rounded-2xl flex items-center justify-center mb-4 mx-auto">
+                    <Eye className="w-8 h-8 text-gray-400" />
+                  </div>
+                  <p className="text-gray-500 font-medium">Video not available</p>
                 </div>
               )}
 
-              <div className="mt-6 grid grid-cols-2 gap-4 text-sm">
-                <div>
-                  <span className="font-medium text-gray-700">Confidence:</span>
-                  <span className="ml-2 text-gray-900">{formatConfidence(selectedEvent.confidence)}</span>
-                </div>
-                <div>
-                  <span className="font-medium text-gray-700">Duration:</span>
-                  <span className="ml-2 text-gray-900">{selectedEvent.metadata.duration}s</span>
-                </div>
-                <div>
-                  <span className="font-medium text-gray-700">Detection Area:</span>
-                  <span className="ml-2 text-gray-900">
-                    {selectedEvent.metadata.location.width} × {selectedEvent.metadata.location.height}px
-                  </span>
-                </div>
-                <div>
-                  <span className="font-medium text-gray-700">Type:</span>
-                  <span className="ml-2 text-gray-900 capitalize">{selectedEvent.type}</span>
-                </div>
+              <div className="mt-8 grid grid-cols-1 md:grid-cols-2 gap-6">
+                {[
+                  { label: 'Confidence', value: formatConfidence(selectedEvent.confidence) },
+                  { label: 'Duration', value: `${selectedEvent.metadata.duration}s` },
+                  { label: 'Detection Area', value: `${selectedEvent.metadata.location.width} × ${selectedEvent.metadata.location.height}px` },
+                  { label: 'Type', value: selectedEvent.type.charAt(0).toUpperCase() + selectedEvent.type.slice(1) }
+                ].map((item, index) => (
+                  <div key={index} className="bg-gradient-to-r from-gray-50 to-blue-50/30 rounded-xl p-4">
+                    <span className="text-sm font-medium text-gray-600">{item.label}</span>
+                    <p className="text-lg font-bold text-gray-800 mt-1">{item.value}</p>
+                  </div>
+                ))}
               </div>
             </div>
           </div>
