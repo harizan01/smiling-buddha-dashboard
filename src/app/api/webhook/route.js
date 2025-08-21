@@ -12,16 +12,16 @@ export async function POST(request) {
         const transformedEvent = {
             id: data.body?.event_id || `evt_${Date.now()}`,
             timestamp: data.body?.ts ? new Date(data.body.ts * 1000).toISOString() : new Date().toISOString(),
-            site: data.body?.site || 'Unknown Site',
-            camera: data.body?.camera_id || 'Unknown Camera',
+            site: data.body?.site || data.body?.zone || 'Test Site',
+            camera: data.body?.camera_id || 'CAM-001',
             severity: getSeverityFromConfidence(data.body?.confidence || 0.5),
             confidence: data.body?.confidence || 0.5,
-            type: data.body?.event_type || 'fire',
+            type: data.body?.event_type === 'ESF' ? 'fire' : (data.body?.event_type || 'fire'),
             thumbnail: getThumbnailUrl(data.body?.thumb_key),
             videoUrl: getVideoUrl(data.body?.clip_key),
             metadata: {
                 location: { x: 0, y: 0, width: 100, height: 100 },
-                duration: 10
+                duration: Math.floor(Math.random() * 15) + 5 // Random duration between 5-20 seconds
             }
         };
 

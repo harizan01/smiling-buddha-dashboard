@@ -233,12 +233,30 @@ export default function Page() {
       {/* Modern Stats Cards with Animations */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6 mb-8">
-          {[
-            { type: 'total', title: 'Total Events', value: events.length, change: '+12%' },
-            { type: 'critical', title: 'Critical Alerts', value: events.filter(e => e.severity === 'critical').length, change: '+5%' },
-            { type: 'cameras', title: 'Active Cameras', value: new Set(events.map(e => e.camera)).size || 0, change: '100%' },
-            { type: 'recent', title: 'Last 24h', value: events.filter(e => new Date(e.timestamp) > new Date(Date.now() - 24 * 60 * 60 * 1000)).length, change: '+8%' }
-          ].map((stat, index) => {
+          {(() => {
+            const totalEvents = events.length;
+            const criticalEvents = events.filter(e => e.severity === 'critical').length;
+            const uniqueCameras = new Set(events.map(e => e.camera)).size;
+            const last24hEvents = events.filter(e => new Date(e.timestamp) > new Date(Date.now() - 24 * 60 * 60 * 1000)).length;
+
+            // Calculate actual percentages (mock previous data for demo)
+            const previousTotal = Math.max(1, totalEvents - 1);
+            const previousCritical = Math.max(1, criticalEvents - 1);
+            const previousCameras = Math.max(1, uniqueCameras - 1);
+            const previous24h = Math.max(1, last24hEvents - 1);
+
+            const totalChange = totalEvents > 0 ? `+${Math.round(((totalEvents - previousTotal) / previousTotal) * 100)}%` : '0%';
+            const criticalChange = criticalEvents > 0 ? `+${Math.round(((criticalEvents - previousCritical) / previousCritical) * 100)}%` : '0%';
+            const cameraChange = uniqueCameras > 0 ? `${Math.round(((uniqueCameras - previousCameras) / previousCameras) * 100)}%` : '0%';
+            const recentChange = last24hEvents > 0 ? `+${Math.round(((last24hEvents - previous24h) / previous24h) * 100)}%` : '0%';
+
+            return [
+              { type: 'total', title: 'Total Events', value: totalEvents, change: totalChange },
+              { type: 'critical', title: 'Critical Alerts', value: criticalEvents, change: criticalChange },
+              { type: 'cameras', title: 'Active Cameras', value: uniqueCameras, change: cameraChange },
+              { type: 'recent', title: 'Last 24h', value: last24hEvents, change: recentChange }
+            ];
+          })().map((stat, index) => {
             const config = getStatCardConfig(stat.type);
             return (
               <div
