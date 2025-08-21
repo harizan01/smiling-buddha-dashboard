@@ -2,7 +2,6 @@
 
 import React, { useState, useEffect } from 'react';
 import { AlertTriangle, Eye, Download, Filter, RefreshCw, Camera, Clock, TrendingUp, Flame, Search, Bell, Settings, Menu, X } from 'lucide-react';
-import { Analytics } from "@vercel/analytics/next"
 
 interface FireEvent {
   id: string;
@@ -29,88 +28,50 @@ export default function Page() {
   const [searchTerm, setSearchTerm] = useState('');
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
-  const mockEvents: FireEvent[] = [
-    {
-      id: 'evt_001',
-      timestamp: '2025-08-20T14:30:00Z',
-      site: 'Building A',
-      camera: 'CAM_001',
-      severity: 'critical',
-      confidence: 0.95,
-      type: 'fire',
-      thumbnail: 'https://images.unsplash.com/photo-1574870111867-089ad2b5618a?w=320&h=180&fit=crop&crop=center',
-      videoUrl: null,
-      metadata: {
-        location: { x: 450, y: 320, width: 120, height: 80 },
-        duration: 15.2
-      }
-    },
-    {
-      id: 'evt_002',
-      timestamp: '2025-08-20T13:15:00Z',
-      site: 'Warehouse B',
-      camera: 'CAM_003',
-      severity: 'medium',
-      confidence: 0.78,
-      type: 'smoke',
-      thumbnail: 'https://images.unsplash.com/photo-1541746972996-4e0b0f93e586?w=320&h=180&fit=crop&crop=center',
-      videoUrl: null,
-      metadata: {
-        location: { x: 200, y: 150, width: 90, height: 60 },
-        duration: 8.7
-      }
-    },
-    {
-      id: 'evt_003',
-      timestamp: '2025-08-20T11:45:00Z',
-      site: 'Building A',
-      camera: 'CAM_002',
-      severity: 'low',
-      confidence: 0.65,
-      type: 'smoke',
-      thumbnail: 'https://images.unsplash.com/photo-1571068316344-75bc76f77890?w=320&h=180&fit=crop&crop=center',
-      videoUrl: null,
-      metadata: {
-        location: { x: 300, y: 250, width: 70, height: 50 },
-        duration: 5.1
-      }
-    }
-  ];
-
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      setEvents(mockEvents);
-      setLoading(false);
-    }, 1000);
-
-    return () => clearTimeout(timer);
-  }, []);
-
+  // Fetch events from your API
   const fetchEvents = async () => {
     setLoading(true);
     try {
-      setTimeout(() => {
-        setEvents(mockEvents);
-        setLoading(false);
-      }, 1000);
+      const response = await fetch('/api/webhook');
+      const data = await response.json();
+      setEvents(data.events || []);
     } catch (error) {
       console.error('Error fetching events:', error);
+      // Fallback to mock data if API fails
+      setEvents([]);
+    } finally {
       setLoading(false);
     }
   };
+
+  // Initial load and periodic refresh
+  useEffect(() => {
+    fetchEvents();
+
+    // Refresh every 30 seconds
+    const interval = setInterval(fetchEvents, 30000);
+    return () => clearInterval(interval);
+  }, []);
 
   const handleVideoPlay = async (event: FireEvent) => {
     setVideoLoading(true);
     setSelectedEvent(event);
 
     try {
-      setTimeout(() => {
+      // If video URL already exists, use it
+      if (event.videoUrl) {
+        setSelectedEvent({
+          ...event,
+          videoUrl: event.videoUrl
+        });
+      } else {
+        // Otherwise use placeholder
         setSelectedEvent({
           ...event,
           videoUrl: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4'
         });
-        setVideoLoading(false);
-      }, 1500);
+      }
+      setVideoLoading(false);
     } catch (error) {
       console.error('Error fetching video URL:', error);
       setVideoLoading(false);
@@ -275,8 +236,8 @@ export default function Page() {
           {[
             { type: 'total', title: 'Total Events', value: events.length, change: '+12%' },
             { type: 'critical', title: 'Critical Alerts', value: events.filter(e => e.severity === 'critical').length, change: '+5%' },
-            { type: 'cameras', title: 'Active Cameras', value: 12, change: '100%' },
-            { type: 'recent', title: 'Last 24h', value: events.length, change: '+8%' }
+            { type: 'cameras', title: 'Active Cameras', value: new Set(events.map(e => e.camera)).size || 0, change: '100%' },
+            { type: 'recent', title: 'Last 24h', value: events.filter(e => new Date(e.timestamp) > new Date(Date.now() - 24 * 60 * 60 * 1000)).length, change: '+8%' }
           ].map((stat, index) => {
             const config = getStatCardConfig(stat.type);
             return (
@@ -361,7 +322,7 @@ export default function Page() {
                     <AlertTriangle className="w-8 h-8 text-gray-400" />
                   </div>
                   <p className="text-gray-500 font-medium">No events found</p>
-                  <p className="text-gray-400 text-sm mt-1">Try adjusting your filters</p>
+                  <p className="text-gray-400 text-sm mt-1">Waiting for detection data...</p>
                 </div>
               </div>
             ) : (
@@ -377,9 +338,12 @@ export default function Page() {
                       <div className="flex flex-col lg:flex-row lg:items-center justify-between space-y-4 lg:space-y-0">
                         <div className="flex items-center space-x-4">
                           <img
-                            src={event.thumbnail}
+                            src={event.thumbnail || 'https://images.unsplash.com/photo-1574870111867-089ad2b5618a?w=320&h=180&fit=crop&crop=center'}
                             alt="Event thumbnail"
                             className="w-20 h-14 object-cover rounded-xl shadow-md"
+                            onError={(e) => {
+                              e.currentTarget.src = 'https://images.unsplash.com/photo-1574870111867-089ad2b5618a?w=320&h=180&fit=crop&crop=center';
+                            }}
                           />
                           <div>
                             <div className="flex items-center space-x-3 mb-2">
