@@ -1,0 +1,509 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Fire Detection POC - Step 1: Mock Data Generator</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+            overflow: hidden;
+        }
+        
+        .header {
+            background: linear-gradient(135deg, #ff6b6b, #ee5a24);
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+        
+        .header h1 {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+        }
+        
+        .step-badge {
+            background: rgba(255,255,255,0.2);
+            padding: 8px 16px;
+            border-radius: 20px;
+            display: inline-block;
+            margin-bottom: 10px;
+            font-weight: bold;
+        }
+        
+        .content {
+            padding: 30px;
+        }
+        
+        .section {
+            margin-bottom: 30px;
+            padding: 25px;
+            border: 2px solid #f1f2f6;
+            border-radius: 15px;
+            background: #f8f9ff;
+        }
+        
+        .section h3 {
+            color: #2c3e50;
+            margin-bottom: 15px;
+            font-size: 1.4em;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .icon {
+            width: 24px;
+            height: 24px;
+        }
+        
+        .json-output {
+            background: #2d3748;
+            color: #e2e8f0;
+            padding: 20px;
+            border-radius: 10px;
+            font-family: 'Monaco', 'Courier New', monospace;
+            font-size: 14px;
+            overflow-x: auto;
+            white-space: pre-wrap;
+        }
+        
+        .generate-btn {
+            background: linear-gradient(135deg, #ff6b6b, #ee5a24);
+            color: white;
+            border: none;
+            padding: 12px 30px;
+            border-radius: 25px;
+            font-size: 16px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            margin: 10px 5px;
+        }
+        
+        .generate-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 20px rgba(255, 107, 107, 0.3);
+        }
+        
+        .download-btn {
+            background: linear-gradient(135deg, #4CAF50, #45a049);
+            color: white;
+            border: none;
+            padding: 8px 20px;
+            border-radius: 20px;
+            font-size: 14px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            margin: 5px;
+        }
+        
+        .download-btn:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 6px 15px rgba(76, 175, 80, 0.3);
+        }
+        
+        .camera-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin: 15px 0;
+        }
+        
+        .camera-card {
+            background: white;
+            padding: 15px;
+            border-radius: 10px;
+            border: 2px solid #e1e8ed;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+        
+        .camera-card:hover {
+            border-color: #ff6b6b;
+            transform: translateY(-2px);
+        }
+        
+        .camera-card.selected {
+            border-color: #ff6b6b;
+            background: #fff5f5;
+        }
+        
+        .event-types {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+            margin: 15px 0;
+        }
+        
+        .event-chip {
+            background: #667eea;
+            color: white;
+            padding: 8px 16px;
+            border-radius: 20px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-size: 14px;
+        }
+        
+        .event-chip:hover, .event-chip.selected {
+            background: #ff6b6b;
+            transform: scale(1.05);
+        }
+        
+        .fire-canvas {
+            width: 300px;
+            height: 200px;
+            border: 2px solid #ff6b6b;
+            border-radius: 10px;
+            margin: 15px auto;
+            display: block;
+        }
+        
+        .progress {
+            width: 100%;
+            height: 20px;
+            background: #e1e8ed;
+            border-radius: 10px;
+            overflow: hidden;
+            margin: 15px 0;
+        }
+        
+        .progress-bar {
+            height: 100%;
+            background: linear-gradient(90deg, #ff6b6b, #ee5a24);
+            width: 0%;
+            transition: width 0.5s ease;
+        }
+        
+        .next-step {
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            color: white;
+            padding: 20px;
+            border-radius: 15px;
+            margin-top: 30px;
+            text-align: center;
+        }
+        
+        .file-info {
+            background: #e8f5e8;
+            padding: 10px;
+            border-radius: 8px;
+            margin: 10px 0;
+            font-size: 14px;
+            color: #2d5a2d;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <div class="step-badge">STEP 1</div>
+            <h1>🔥 Fire Detection POC</h1>
+            <p>Mock AI Detection Output Generator</p>
+        </div>
+        
+        <div class="content">
+            <div class="section">
+                <h3>
+                    📹 Camera Selection
+                </h3>
+                <p>Select which camera detected the fire event:</p>
+                <div class="camera-grid" id="cameraGrid">
+                    <!-- Cameras will be generated here -->
+                </div>
+            </div>
+            
+            <div class="section">
+                <h3>
+                    🚨 Event Type Selection
+                </h3>
+                <p>Choose the type of event detected:</p>
+                <div class="event-types">
+                    <div class="event-chip selected" data-event="fire_detected">🔥 Fire Detected</div>
+                    <div class="event-chip" data-event="smoke_detected">💨 Smoke Detected</div>
+                    <div class="event-chip" data-event="explosion_detected">💥 Explosion</div>
+                    <div class="event-chip" data-event="accident_detected">⚠️ Accident</div>
+                    <div class="event-chip" data-event="fight_detected">👊 Fight</div>
+                </div>
+            </div>
+            
+            <div class="section">
+                <h3>
+                    🎯 Generate Mock Detection
+                </h3>
+                <p>Create realistic fire detection data for AWS pipeline testing:</p>
+                <button class="generate-btn" onclick="generateMockData()">🎲 Generate Mock Detection</button>
+                <button class="generate-btn" onclick="generateFireVisual()">🔥 Generate Fire Visual</button>
+                
+                <div class="progress" style="display: none;" id="progress">
+                    <div class="progress-bar" id="progressBar"></div>
+                </div>
+            </div>
+            
+            <div class="section">
+                <h3>
+                    📄 Generated JSON Metadata
+                </h3>
+                <div class="json-output" id="jsonOutput">
+                    Click "Generate Mock Detection" to create JSON metadata...
+                </div>
+                <button class="download-btn" onclick="downloadJSON()" id="downloadJson" style="display: none;">💾 Download JSON</button>
+            </div>
+            
+            <div class="section">
+                <h3>
+                    🖼️ Generated Fire Detection Image
+                </h3>
+                <canvas class="fire-canvas" id="fireCanvas"></canvas>
+                <button class="download-btn" onclick="downloadImage()" id="downloadImg" style="display: none;">💾 Download Image</button>
+                <div class="file-info" id="imageInfo" style="display: none;"></div>
+            </div>
+            
+            <div class="section">
+                <h3>
+                    🎬 Video Clip Simulation
+                </h3>
+                <p>For the video clip, you can either:</p>
+                <ul style="margin: 15px 0 15px 20px; line-height: 1.8;">
+                    <li>📱 Record a short video of a fire/candle (5-10 seconds)</li>
+                    <li>🌐 Download a sample fire video from free stock sites</li>
+                    <li>🎭 Use the generated image as a static "video frame"</li>
+                </ul>
+                <button class="download-btn" onclick="createVideoPlaceholder()">📝 Create Video Placeholder</button>
+                <div class="file-info" id="videoInfo" style="display: none;"></div>
+            </div>
+            
+            <div class="next-step">
+                <h3>🎯 Ready for Step 2?</h3>
+                <p>Once you have your 3 files (JSON + Image + Video), we'll set up AWS S3 bucket and upload them!</p>
+                <p><strong>Files needed:</strong></p>
+                <ul style="list-style: none; margin: 15px 0;">
+                    <li>✅ detection_metadata.json</li>
+                    <li>✅ fire_detection_snapshot.jpg</li>
+                    <li>✅ fire_event_clip.mp4 (or .mov)</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let selectedCamera = 'cam-01';
+        let selectedEvent = 'fire_detected';
+        let generatedData = null;
+        
+        // Initialize cameras
+        function initializeCameras() {
+            const grid = document.getElementById('cameraGrid');
+            const cameras = [
+                { id: 'cam-01', name: 'Factory Floor', icon: '🏭' },
+                { id: 'cam-02', name: 'Warehouse A', icon: '📦' },
+                { id: 'cam-03', name: 'Loading Dock', icon: '🚛' },
+                { id: 'cam-04', name: 'Office Building', icon: '🏢' },
+                { id: 'cam-05', name: 'Parking Lot', icon: '🅿️' },
+                { id: 'cam-06', name: 'Main Entrance', icon: '🚪' }
+            ];
+            
+            cameras.forEach(camera => {
+                const card = document.createElement('div');
+                card.className = `camera-card ${camera.id === selectedCamera ? 'selected' : ''}`;
+                card.onclick = () => selectCamera(camera.id);
+                card.innerHTML = `
+                    <div style="font-size: 2em; margin-bottom: 8px;">${camera.icon}</div>
+                    <div style="font-weight: bold;">${camera.id}</div>
+                    <div style="font-size: 0.9em; color: #666;">${camera.name}</div>
+                `;
+                grid.appendChild(card);
+            });
+        }
+        
+        function selectCamera(cameraId) {
+            selectedCamera = cameraId;
+            document.querySelectorAll('.camera-card').forEach(card => {
+                card.classList.remove('selected');
+            });
+            event.target.closest('.camera-card').classList.add('selected');
+        }
+        
+        // Event type selection
+        document.querySelectorAll('.event-chip').forEach(chip => {
+            chip.onclick = () => {
+                document.querySelectorAll('.event-chip').forEach(c => c.classList.remove('selected'));
+                chip.classList.add('selected');
+                selectedEvent = chip.dataset.event;
+            };
+        });
+        
+        function generateMockData() {
+            const progress = document.getElementById('progress');
+            const progressBar = document.getElementById('progressBar');
+            
+            progress.style.display = 'block';
+            progressBar.style.width = '0%';
+            
+            // Animate progress
+            let width = 0;
+            const interval = setInterval(() => {
+                width += 10;
+                progressBar.style.width = width + '%';
+                if (width >= 100) {
+                    clearInterval(interval);
+                    setTimeout(() => {
+                        progress.style.display = 'none';
+                        showGeneratedData();
+                    }, 500);
+                }
+            }, 100);
+        }
+        
+        function showGeneratedData() {
+            const now = new Date();
+            const timestamp = now.toISOString();
+            
+            generatedData = {
+                camera_id: selectedCamera,
+                event: selectedEvent,
+                timestamp: timestamp,
+                confidence: Math.round((Math.random() * 0.3 + 0.7) * 100) / 100,
+                location: {
+                    bounding_box: {
+                        x: Math.round(Math.random() * 200),
+                        y: Math.round(Math.random() * 150),
+                        width: Math.round(Math.random() * 100 + 80),
+                        height: Math.round(Math.random() * 80 + 60)
+                    }
+                },
+                metadata: {
+                    frame_number: Math.round(Math.random() * 1000 + 500),
+                    video_duration_seconds: Math.round(Math.random() * 5 + 5),
+                    detection_model: "FireDetection-v2.1",
+                    processing_time_ms: Math.round(Math.random() * 50 + 25)
+                },
+                files: {
+                    video_clip: `s3://fire-detection-poc/events/${selectedEvent}/${selectedCamera}_${timestamp.split('T')[0]}.mp4`,
+                    snapshot: `s3://fire-detection-poc/events/${selectedEvent}/${selectedCamera}_${timestamp.split('T')[0]}.jpg`
+                },
+                alert_level: selectedEvent.includes('fire') ? 'HIGH' : selectedEvent.includes('smoke') ? 'MEDIUM' : 'LOW'
+            };
+            
+            document.getElementById('jsonOutput').textContent = JSON.stringify(generatedData, null, 2);
+            document.getElementById('downloadJson').style.display = 'inline-block';
+        }
+        
+        function generateFireVisual() {
+            const canvas = document.getElementById('fireCanvas');
+            const ctx = canvas.getContext('2d');
+            
+            // Clear canvas
+            ctx.fillStyle = '#1a1a1a';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            
+            // Draw background (factory/warehouse scene)
+            ctx.fillStyle = '#333';
+            ctx.fillRect(0, canvas.height - 50, canvas.width, 50);
+            
+            // Draw fire effect
+            for (let i = 0; i < 20; i++) {
+                const x = 150 + (Math.random() - 0.5) * 100;
+                const y = canvas.height - 50 - Math.random() * 80;
+                const size = Math.random() * 30 + 10;
+                
+                const gradient = ctx.createRadialGradient(x, y, 0, x, y, size);
+                gradient.addColorStop(0, `rgba(255, ${Math.round(Math.random() * 100 + 100)}, 0, 0.9)`);
+                gradient.addColorStop(0.5, `rgba(255, ${Math.round(Math.random() * 50 + 50)}, 0, 0.6)`);
+                gradient.addColorStop(1, `rgba(200, 0, 0, 0.1)`);
+                
+                ctx.fillStyle = gradient;
+                ctx.beginPath();
+                ctx.arc(x, y, size, 0, Math.PI * 2);
+                ctx.fill();
+            }
+            
+            // Draw detection box
+            if (generatedData) {
+                const bbox = generatedData.location.bounding_box;
+                ctx.strokeStyle = '#ff0000';
+                ctx.lineWidth = 3;
+                ctx.strokeRect(bbox.x, bbox.y, bbox.width, bbox.height);
+                
+                // Draw label
+                ctx.fillStyle = '#ff0000';
+                ctx.fillRect(bbox.x, bbox.y - 25, bbox.width, 25);
+                ctx.fillStyle = 'white';
+                ctx.font = '14px Arial';
+                ctx.fillText(`${selectedEvent.replace('_', ' ').toUpperCase()} (${generatedData.confidence})`, bbox.x + 5, bbox.y - 8);
+            }
+            
+            document.getElementById('downloadImg').style.display = 'inline-block';
+            document.getElementById('imageInfo').style.display = 'block';
+            document.getElementById('imageInfo').innerHTML = `
+                📸 <strong>Generated:</strong> fire_detection_snapshot.jpg<br>
+                📐 <strong>Size:</strong> ${canvas.width}x${canvas.height}px<br>
+                🎯 <strong>Detection:</strong> ${selectedEvent.replace('_', ' ')}
+            `;
+        }
+        
+        function downloadJSON() {
+            const dataStr = JSON.stringify(generatedData, null, 2);
+            const dataBlob = new Blob([dataStr], {type: 'application/json'});
+            const url = URL.createObjectURL(dataBlob);
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = 'detection_metadata.json';
+            link.click();
+            URL.revokeObjectURL(url);
+        }
+        
+        function downloadImage() {
+            const canvas = document.getElementById('fireCanvas');
+            const link = document.createElement('a');
+            link.href = canvas.toDataURL('image/jpeg', 0.8);
+            link.download = 'fire_detection_snapshot.jpg';
+            link.click();
+        }
+        
+        function createVideoPlaceholder() {
+            const placeholder = {
+                filename: "fire_event_clip.mp4",
+                duration: "8 seconds",
+                description: "Short video clip showing fire detection event",
+                instructions: [
+                    "Record 5-10 seconds of a candle or small fire",
+                    "Or download from: pexels.com/videos/fire",
+                    "Or use: pixabay.com/videos/fire",
+                    "Keep file size under 50MB for AWS upload"
+                ]
+            };
+            
+            document.getElementById('videoInfo').style.display = 'block';
+            document.getElementById('videoInfo').innerHTML = `
+                🎬 <strong>Video needed:</strong> ${placeholder.filename}<br>
+                ⏱️ <strong>Duration:</strong> ${placeholder.duration}<br>
+                📝 <strong>Instructions:</strong><br>
+                ${placeholder.instructions.map(inst => `• ${inst}`).join('<br>')}
+            `;
+        }
+        
+        // Initialize
+        initializeCameras();
+    </script>
+</body>
+</html>

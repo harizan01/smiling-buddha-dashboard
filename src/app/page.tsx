@@ -1,5 +1,3 @@
-'use client';
-
 import React, { useState, useEffect } from 'react';
 import { AlertTriangle, Eye, Download, Filter, RefreshCw, Camera, Clock, TrendingUp, Flame, Search, Bell, Settings, Menu, X } from 'lucide-react';
 
@@ -22,23 +20,87 @@ interface FireEvent {
 export default function Page() {
   const [events, setEvents] = useState<FireEvent[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [filter, setFilter] = useState('all');
   const [selectedEvent, setSelectedEvent] = useState<FireEvent | null>(null);
   const [videoLoading, setVideoLoading] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
-  // Fetch events from your API
+  // API URL - fallback to hardcoded URL if env var not set
+  const LAMBDA_API_URL = process.env.NEXT_PUBLIC_LAMBDA_API_URL || 'https://5l9r5l0d16.execute-api.ap-south-1.amazonaws.com/prod/events';
+
+  // Fetch events from Lambda API
   const fetchEvents = async () => {
     setLoading(true);
+    setError(null);
+
     try {
-      const response = await fetch('/api/webhook');
+      console.log('Fetching events from:', LAMBDA_API_URL);
+
+      const response = await fetch(`${LAMBDA_API_URL}?action=get_events`, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
       const data = await response.json();
-      setEvents(data.events || []);
+      console.log('Raw API Response:', data);
+
+      // Handle different response formats from API Gateway
+      let responseData;
+      if (data.body && typeof data.body === 'string') {
+        // API Gateway returns stringified JSON in body
+        responseData = JSON.parse(data.body);
+      } else if (data.success !== undefined) {
+        // Direct response format
+        responseData = data;
+      } else if (data.statusCode === 200 && data.body) {
+        // Another API Gateway format
+        responseData = JSON.parse(data.body);
+      } else {
+        // Assume data is the response itself
+        responseData = data;
+      }
+
+      console.log('Parsed response data:', responseData);
+
+      if (responseData.success && Array.isArray(responseData.events)) {
+        setEvents(responseData.events);
+        console.log(`Successfully loaded ${responseData.events.length} events from DynamoDB`);
+      } else {
+        throw new Error(responseData.error || 'Failed to fetch events - invalid response format');
+      }
     } catch (error) {
       console.error('Error fetching events:', error);
-      // Fallback to mock data if API fails
-      setEvents([]);
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
+      setError(errorMessage);
+
+      // Fallback to mock data for development/testing
+      const mockEvents: FireEvent[] = [
+        {
+          id: 'mock-1',
+          timestamp: new Date().toISOString(),
+          site: 'Demo Site',
+          camera: 'cam-demo',
+          severity: 'critical',
+          confidence: 0.95,
+          type: 'fire',
+          thumbnail: 'https://images.unsplash.com/photo-1574870111867-089ad2b5618a?w=320&h=180&fit=crop&crop=center',
+          videoUrl: null,
+          metadata: {
+            location: { x: 100, y: 50, width: 200, height: 150 },
+            duration: 8
+          }
+        }
+      ];
+      setEvents(mockEvents);
+      console.log('Using fallback mock data due to API error');
     } finally {
       setLoading(false);
     }
@@ -58,14 +120,14 @@ export default function Page() {
     setSelectedEvent(event);
 
     try {
-      // If video URL already exists, use it
+      // Use the video URL from the event data if available
       if (event.videoUrl) {
         setSelectedEvent({
           ...event,
           videoUrl: event.videoUrl
         });
       } else {
-        // Otherwise use placeholder
+        // Fallback to demo video if no real video available
         setSelectedEvent({
           ...event,
           videoUrl: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4'
@@ -73,7 +135,7 @@ export default function Page() {
       }
       setVideoLoading(false);
     } catch (error) {
-      console.error('Error fetching video URL:', error);
+      console.error('Error loading video:', error);
       setVideoLoading(false);
     }
   };
@@ -192,7 +254,9 @@ export default function Page() {
                   <h1 className="text-2xl font-bold bg-gradient-to-r from-gray-800 to-gray-600 bg-clip-text text-transparent">
                     Fire Detection Dashboard
                   </h1>
-                  <p className="text-gray-500 text-sm">Real-time monitoring and alerts</p>
+                  <p className="text-gray-500 text-sm">
+                    {error ? `Connection Error: ${error}` : `Connected to AWS • ${events.length} events loaded`}
+                  </p>
                 </div>
               </div>
             </div>
@@ -230,6 +294,22 @@ export default function Page() {
         </div>
       </div>
 
+      {/* Connection Status Banner */}
+      {error && (
+        <div className="bg-red-50 border-l-4 border-red-400 p-4">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div className="flex">
+              <AlertTriangle className="h-5 w-5 text-red-400" />
+              <div className="ml-3">
+                <p className="text-sm text-red-700">
+                  <strong>API Connection Failed:</strong> {error}. Using demo data for preview.
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Modern Stats Cards with Animations */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6 mb-8">
@@ -237,9 +317,11 @@ export default function Page() {
             const totalEvents = events.length;
             const criticalEvents = events.filter(e => e.severity === 'critical').length;
             const uniqueCameras = new Set(events.map(e => e.camera)).size;
-            const last24hEvents = events.filter(e => new Date(e.timestamp) > new Date(Date.now() - 24 * 60 * 60 * 1000)).length;
+            const last24hEvents = events.filter(e =>
+              new Date(e.timestamp) > new Date(Date.now() - 24 * 60 * 60 * 1000)
+            ).length;
 
-            // Calculate actual percentages (mock previous data for demo)
+            // Calculate percentage changes (mock previous data for demo)
             const previousTotal = Math.max(1, totalEvents - 1);
             const previousCritical = Math.max(1, criticalEvents - 1);
             const previousCameras = Math.max(1, uniqueCameras - 1);
@@ -268,7 +350,7 @@ export default function Page() {
                   <div>
                     <p className="text-sm text-gray-600 font-medium mb-1">{stat.title}</p>
                     <p className="text-3xl font-bold text-gray-800 mb-1">{stat.value}</p>
-                    <p className="text-xs text-green-600 font-medium">{stat.change} from last week</p>
+                    <p className="text-xs text-green-600 font-medium">{stat.change} from last period</p>
                   </div>
                   <div className={`p-3 ${config.iconBg} rounded-2xl shadow-sm`}>
                     {config.icon}
@@ -311,6 +393,8 @@ export default function Page() {
 
               <div className="flex items-center space-x-4 text-sm text-gray-600">
                 <span>Showing {filteredEvents.length} of {events.length} events</span>
+                {!error && <span className="text-green-600">• Live from AWS</span>}
+                {error && <span className="text-orange-600">• Demo Mode</span>}
               </div>
             </div>
           </div>
@@ -319,8 +403,10 @@ export default function Page() {
         {/* Modern Events Table */}
         <div className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-lg border border-white/20 overflow-hidden">
           <div className="px-6 py-4 border-b border-gray-200/50 bg-gradient-to-r from-gray-50/50 to-blue-50/30">
-            <h2 className="text-xl font-bold text-gray-800">Detection Events</h2>
-            <p className="text-sm text-gray-600 mt-1">Real-time fire and smoke detection alerts</p>
+            <h2 className="text-xl font-bold text-gray-800">Fire Detection Events</h2>
+            <p className="text-sm text-gray-600 mt-1">
+              {error ? 'Demo data - API connection failed' : 'Real-time data from AWS DynamoDB'}
+            </p>
           </div>
 
           <div className="overflow-x-auto">
@@ -330,7 +416,8 @@ export default function Page() {
                   <div className="w-16 h-16 bg-gradient-to-r from-blue-500 to-purple-500 rounded-2xl flex items-center justify-center mb-4 mx-auto animate-pulse">
                     <RefreshCw className="w-8 h-8 text-white animate-spin" />
                   </div>
-                  <p className="text-gray-600 font-medium">Loading events...</p>
+                  <p className="text-gray-600 font-medium">Loading events from AWS...</p>
+                  <p className="text-gray-400 text-sm mt-1">Connecting to DynamoDB</p>
                 </div>
               </div>
             ) : filteredEvents.length === 0 ? (
@@ -340,7 +427,9 @@ export default function Page() {
                     <AlertTriangle className="w-8 h-8 text-gray-400" />
                   </div>
                   <p className="text-gray-500 font-medium">No events found</p>
-                  <p className="text-gray-400 text-sm mt-1">Waiting for detection data...</p>
+                  <p className="text-gray-400 text-sm mt-1">
+                    {error ? 'Check API connection and try again' : 'Upload detection files to S3 to see events'}
+                  </p>
                 </div>
               </div>
             ) : (
@@ -356,8 +445,8 @@ export default function Page() {
                       <div className="flex flex-col lg:flex-row lg:items-center justify-between space-y-4 lg:space-y-0">
                         <div className="flex items-center space-x-4">
                           <img
-                            src={event.thumbnail || 'https://images.unsplash.com/photo-1574870111867-089ad2b5618a?w=320&h=180&fit=crop&crop=center'}
-                            alt="Event thumbnail"
+                            src={event.thumbnail}
+                            alt="Fire detection thumbnail"
                             className="w-20 h-14 object-cover rounded-xl shadow-md"
                             onError={(e) => {
                               e.currentTarget.src = 'https://images.unsplash.com/photo-1574870111867-089ad2b5618a?w=320&h=180&fit=crop&crop=center';
@@ -368,7 +457,7 @@ export default function Page() {
                               <h3 className="font-semibold text-gray-800">{formatTimestamp(event.timestamp)}</h3>
                               <span className={`inline-flex items-center space-x-2 px-3 py-1 rounded-full text-xs font-medium border ${severityConfig.color} ${severityConfig.glow}`}>
                                 {getSeverityIcon(event.severity)}
-                                <span>{event.severity}</span>
+                                <span>{event.severity.toUpperCase()}</span>
                               </span>
                             </div>
                             <div className="flex items-center space-x-4 text-sm text-gray-600">
@@ -386,7 +475,7 @@ export default function Page() {
                             className="flex items-center space-x-2 px-4 py-2 bg-gradient-to-r from-blue-500 to-blue-600 text-white rounded-xl hover:from-blue-600 hover:to-blue-700 transition-all duration-200 transform hover:scale-105 shadow-lg"
                           >
                             <Eye className="w-4 h-4" />
-                            <span>View</span>
+                            <span>View Details</span>
                           </button>
                           <button className="flex items-center space-x-2 px-4 py-2 bg-gradient-to-r from-gray-100 to-gray-200 text-gray-700 rounded-xl hover:from-gray-200 hover:to-gray-300 transition-all duration-200 transform hover:scale-105">
                             <Download className="w-4 h-4" />
@@ -427,39 +516,54 @@ export default function Page() {
                     <div className="w-16 h-16 bg-gradient-to-r from-blue-500 to-purple-500 rounded-2xl flex items-center justify-center mb-4 mx-auto animate-pulse">
                       <RefreshCw className="w-8 h-8 text-white animate-spin" />
                     </div>
-                    <p className="text-gray-600 font-medium">Loading video...</p>
+                    <p className="text-gray-600 font-medium">Loading video from S3...</p>
                   </div>
                 </div>
               ) : selectedEvent.videoUrl ? (
-                <video
-                  controls
-                  className="w-full rounded-2xl shadow-lg"
-                  poster={selectedEvent.thumbnail}
-                >
-                  <source src={selectedEvent.videoUrl} type="video/mp4" />
-                  Your browser does not support the video tag.
-                </video>
+                <div className="space-y-4">
+                  <video
+                    controls
+                    className="w-full rounded-2xl shadow-lg"
+                    poster={selectedEvent.thumbnail}
+                  >
+                    <source src={selectedEvent.videoUrl} type="video/mp4" />
+                    Your browser does not support the video tag.
+                  </video>
+                  <p className="text-sm text-gray-500 text-center">
+                    {error ? 'Demo video (API connection failed)' : 'Video loaded from AWS S3 bucket'}
+                  </p>
+                </div>
               ) : (
                 <div className="bg-gradient-to-br from-gray-50 to-gray-100 rounded-2xl p-12 text-center">
                   <div className="w-16 h-16 bg-gray-200 rounded-2xl flex items-center justify-center mb-4 mx-auto">
                     <Eye className="w-8 h-8 text-gray-400" />
                   </div>
                   <p className="text-gray-500 font-medium">Video not available</p>
+                  <p className="text-gray-400 text-sm mt-1">No video file found in S3 bucket</p>
                 </div>
               )}
 
               <div className="mt-8 grid grid-cols-1 md:grid-cols-2 gap-6">
                 {[
-                  { label: 'Confidence', value: formatConfidence(selectedEvent.confidence) },
-                  { label: 'Duration', value: `${selectedEvent.metadata.duration}s` },
+                  { label: 'Confidence Score', value: formatConfidence(selectedEvent.confidence) },
+                  { label: 'Event Duration', value: `${selectedEvent.metadata.duration}s` },
                   { label: 'Detection Area', value: `${selectedEvent.metadata.location.width} × ${selectedEvent.metadata.location.height}px` },
-                  { label: 'Type', value: selectedEvent.type.charAt(0).toUpperCase() + selectedEvent.type.slice(1) }
+                  { label: 'Event Type', value: selectedEvent.type.charAt(0).toUpperCase() + selectedEvent.type.slice(1) }
                 ].map((item, index) => (
                   <div key={index} className="bg-gradient-to-r from-gray-50 to-blue-50/30 rounded-xl p-4">
                     <span className="text-sm font-medium text-gray-600">{item.label}</span>
                     <p className="text-lg font-bold text-gray-800 mt-1">{item.value}</p>
                   </div>
                 ))}
+              </div>
+
+              <div className="mt-6 p-4 bg-blue-50 rounded-xl">
+                <h4 className="text-sm font-medium text-blue-800 mb-2">AWS Integration Status</h4>
+                <div className="space-y-1 text-sm text-blue-700">
+                  <p>{error ? '⚠ Demo Mode - API connection failed' : '✓ Data loaded from DynamoDB'}</p>
+                  <p>{error ? '⚠ Using placeholder images' : '✓ Images served from S3 with presigned URLs'}</p>
+                  <p>{error ? '⚠ Lambda functions not accessible' : '✓ Real-time processing via Lambda functions'}</p>
+                </div>
               </div>
             </div>
           </div>

@@ -1,0 +1,25 @@
+{
+  "camera_id": "cam-01",
+  "event": "fire_detected",
+  "timestamp": "2025-08-27T09:20:15.915Z",
+  "confidence": 0.99,
+  "location": {
+    "bounding_box": {
+      "x": 107,
+      "y": 10,
+      "width": 89,
+      "height": 127
+    }
+  },
+  "metadata": {
+    "frame_number": 1330,
+    "video_duration_seconds": 7,
+    "detection_model": "FireDetection-v2.1",
+    "processing_time_ms": 25
+  },
+  "files": {
+    "video_clip": "s3://fire-detection-poc/events/fire_detected/cam-01_2025-08-27.mp4",
+    "snapshot": "s3://fire-detection-poc/events/fire_detected/cam-01_2025-08-27.jpg"
+  },
+  "alert_level": "HIGH"
+}
