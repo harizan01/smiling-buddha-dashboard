@@ -1,0 +1,25 @@
+{
+  "camera_id": "cam-02",
+  "event": "smoke_detected",
+  "timestamp": "2025-08-27T11:10:38.133Z",
+  "confidence": 0.79,
+  "location": {
+    "bounding_box": {
+      "x": 79,
+      "y": 33,
+      "width": 110,
+      "height": 111
+    }
+  },
+  "metadata": {
+    "frame_number": 1250,
+    "video_duration_seconds": 10,
+    "detection_model": "FireDetection-v2.1",
+    "processing_time_ms": 60
+  },
+  "files": {
+    "video_clip": "s3://smiling-buddha/events/smoke_detected/warehouse_fire.mp4",
+    "snapshot": "s3://smiling-buddha/events/smoke_detected/smoke_event_01.jpg"
+  },
+  "alert_level": "MEDIUM"
+}

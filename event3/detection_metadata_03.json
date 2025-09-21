@@ -1,0 +1,25 @@
+{
+  "camera_id": "cam-03",
+  "event": "fire_detected",
+  "timestamp": "2025-08-27T11:56:57.581Z",
+  "confidence": 0.94,
+  "location": {
+    "bounding_box": {
+      "x": 13,
+      "y": 76,
+      "width": 113,
+      "height": 132
+    }
+  },
+  "metadata": {
+    "frame_number": 527,
+    "video_duration_seconds": 8,
+    "detection_model": "FireDetection-v2.1",
+    "processing_time_ms": 46
+  },
+  "files": {
+    "video_clip": "s3://smiling-buddha/events/fire_detected/fire_event_clip.mp4",
+    "snapshot": "s3://smiling-buddha/events/fire_detected/fire_detection_snapshot.jpg"
+  },
+  "alert_level": "HIGH"
+}

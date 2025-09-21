@@ -1,0 +1,11 @@
+{
+  "camera_id": "cam-01",
+  "event": "fire_detected",
+  "timestamp": "2025-08-27T10:15:00Z",
+  "confidence": 0.94,
+  "files": {
+    "video_clip": "s3://smiling-buddha/events/fire_detected/fire_event_clip.mp4",
+    "snapshot": "s3://smiling-buddha/events/fire_detected/fire_detection_snapshot.jpg"
+  },
+  "alert_level": "HIGH"
+}
