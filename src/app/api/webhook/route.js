@@ -6,15 +6,15 @@ let events = [];
 export async function POST(request) {
     try {
         const data = await request.json();
-        console.log('Received school monitoring webhook:', data);
+        console.log('Received fire detection webhook:', data);
 
-        // Transform school monitoring data to dashboard format
+        // Transform fire detection data to dashboard format
         const transformedEvent = {
             id: data.body?.event_id || `evt_${Date.now()}`,
             timestamp: data.body?.ts ? new Date(data.body.ts * 1000).toISOString() : new Date().toISOString(),
             site: data.body?.site || 'School Campus',
-            camera: data.body?.camera_id || 'CAM-SCHOOL-001',
-            severity: getSeverityFromSchoolEvent(data.body),
+            camera: data.body?.camera_id || 'CAM-FIRE-001',
+            severity: getSeverityFromFireEvent(data.body),
             confidence: data.body?.confidence || 0.5,
             type: getEventTypeDisplay(data.body?.event_type),
             thumbnail: getThumbnailUrl(data.body?.thumb_key),
@@ -22,14 +22,16 @@ export async function POST(request) {
             metadata: {
                 location: { x: 0, y: 0, width: 100, height: 100 },
                 duration: Math.floor(Math.random() * 15) + 5,
-                // School-specific metadata
-                personCount: data.body?.metadata?.person_count || 0,
-                riskLevel: data.body?.metadata?.risk_level || 'low',
-                detectionType: data.body?.metadata?.detection_type || 'unknown'
+                // Fire-specific metadata
+                detectionType: data.body?.metadata?.detection_type || 'fire',
+                alertLevel: data.body?.metadata?.alert_level || 'critical',
+                emergencyResponse: data.body?.metadata?.emergency_response || 'required',
+                videoTimestamp: data.body?.metadata?.video_timestamp || 0,
+                severity: data.body?.metadata?.severity || 'high'
             }
         };
 
-        console.log('Transformed school event:', transformedEvent);
+        console.log('Transformed fire detection event:', transformedEvent);
 
         // Add to events array (limit to last 100)
         events.unshift(transformedEvent);
@@ -37,16 +39,17 @@ export async function POST(request) {
             events = events.slice(0, 100);
         }
 
-        console.log(`Total school events stored: ${events.length}`);
+        console.log(`Total fire detection events stored: ${events.length}`);
 
         return NextResponse.json({
             success: true,
-            message: 'School monitoring event received and stored',
+            message: 'Fire detection event received and stored',
             eventId: transformedEvent.id,
-            eventType: transformedEvent.type
+            eventType: transformedEvent.type,
+            severity: transformedEvent.severity
         });
     } catch (error) {
-        console.error('School monitoring webhook error:', error);
+        console.error('Fire detection webhook error:', error);
         return NextResponse.json({
             error: 'Invalid request',
             details: error.message
@@ -55,34 +58,53 @@ export async function POST(request) {
 }
 
 export async function GET() {
-    console.log(`GET request - returning ${events.length} school events`);
+    console.log(`GET request - returning ${events.length} fire detection events`);
     return NextResponse.json({
         success: true,
         events,
         total: events.length,
         timestamp: new Date().toISOString(),
-        source: 'aws_school_monitoring'
+        source: 'aws_fire_detection_system'
     });
 }
 
-function getSeverityFromSchoolEvent(eventBody) {
+function getSeverityFromFireEvent(eventBody) {
     const eventType = eventBody?.event_type || '';
     const confidence = eventBody?.confidence || 0;
-    const personCount = eventBody?.metadata?.person_count || 0;
+    const detectionType = eventBody?.metadata?.detection_type || '';
 
-    // School-specific severity logic
-    if (eventType === 'crowd_detected' && personCount > 15) return 'critical';
-    if (eventType === 'fighting' || eventType === 'violence') return 'critical';
-    if (eventType === 'weapon_detected') return 'critical';
-    if (eventType === 'running' && confidence > 0.8) return 'medium';
-    if (eventType === 'crowd_detected' && personCount > 8) return 'medium';
-    if (confidence > 0.8) return 'medium';
+    // Fire-specific severity logic
+    if (eventType === 'fire_detected' && (detectionType === 'fire' || detectionType === 'flame')) {
+        if (confidence > 0.9) return 'critical';
+        if (confidence > 0.8) return 'high';
+        return 'medium';
+    }
 
+    if (eventType === 'fire_detected' && detectionType === 'smoke') {
+        if (confidence > 0.85) return 'high';
+        if (confidence > 0.7) return 'medium';
+        return 'low';
+    }
+
+    if (eventType === 'fire_detected' && detectionType === 'explosion') return 'critical';
+    if (eventType === 'fire_detected' && detectionType === 'emergency') return 'critical';
+
+    // General confidence-based severity
+    if (confidence > 0.85) return 'high';
+    if (confidence > 0.7) return 'medium';
     return 'low';
 }
 
 function getEventTypeDisplay(eventType) {
     const eventTypeMap = {
+        'fire_detected': 'Fire Detected',
+        'smoke_detected': 'Smoke Detected',
+        'flame_detected': 'Flame Detected',
+        'burning_detected': 'Burning Detected',
+        'heat_detected': 'Heat Detected',
+        'explosion_detected': 'Explosion Detected',
+        'emergency_detected': 'Emergency Detected',
+        // Legacy mappings for backwards compatibility
         'crowd_detected': 'Crowd Gathering',
         'crowd_detection': 'Crowd Detected',
         'person_tracking': 'Person Detected',
@@ -95,29 +117,32 @@ function getEventTypeDisplay(eventType) {
         'ESF': 'Emergency Situation'
     };
 
-    return eventTypeMap[eventType] || 'School Activity';
+    return eventTypeMap[eventType] || 'Fire Detection Event';
 }
 
 function getThumbnailUrl(thumbKey) {
-    // If you have actual S3 URLs, construct them here
     if (!thumbKey) {
-        // Return school-appropriate placeholder
-        return 'https://images.unsplash.com/photo-1580582932707-520aed937b7b?w=320&h=180&fit=crop&crop=center';
+        // Return fire-appropriate placeholder
+        return 'https://images.unsplash.com/photo-1574870111867-089ad2b5618a?w=320&h=180&fit=crop&crop=center';
     }
 
-    // For actual S3 integration:
-    // return `https://school-video-monitor-thumbnails-001.s3.ap-south-1.amazonaws.com/${thumbKey}`;
+    // If thumbKey is already a full URL (presigned URL), return it directly
+    if (thumbKey.includes('amazonaws.com') || thumbKey.includes('https://')) {
+        return thumbKey;
+    }
 
-    // Placeholder for now
-    return 'https://images.unsplash.com/photo-1580582932707-520aed937b7b?w=320&h=180&fit=crop&crop=center';
+    // Construct S3 URL for thumbnail
+    return `https://school-video-monitor-thumbnails-001.s3.ap-south-1.amazonaws.com/${thumbKey}`;
 }
 
 function getVideoUrl(clipKey) {
     if (!clipKey) return null;
 
-    // For actual S3 integration:
-    // return `https://school-video-monitor-videos-001.s3.ap-south-1.amazonaws.com/${clipKey}`;
+    // If clipKey is already a presigned URL, return it directly
+    if (clipKey.includes('amazonaws.com') || clipKey.includes('https://')) {
+        return clipKey;
+    }
 
-    // Demo video for now
-    return 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4';
+    // Construct S3 URL for video clip
+    return `https://school-video-monitor-videos-001.s3.ap-south-1.amazonaws.com/${clipKey}`;
 }
