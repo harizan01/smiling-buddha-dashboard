@@ -30,8 +30,7 @@ export default function Page() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
   // API URL - fallback to hardcoded URL if env var not set
-  const LAMBDA_API_URL = process.env.NEXT_PUBLIC_LAMBDA_API_URL || 'https://5l9r5l0d16.execute-api.ap-south-1.amazonaws.com/prod/events';
-
+  const LAMBDA_API_URL = process.env.NEXT_PUBLIC_LAMBDA_API_URL || 'https://smiling-buddha-dashboard-new.vercel.app/api/webhook';
   // Fetch events from Lambda API
   const fetchEvents = async () => {
     setLoading(true);
